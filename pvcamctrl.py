@@ -1,3 +1,5 @@
+#  /usr/bin/python
+# -*- coding: utf-8 -*-
 import socket, traceback
 # use android app sense to transmit
 import xml.etree.ElementTree as etree
@@ -7,8 +9,10 @@ import numpy as np
 import os.path as op
 import threading
 
-#udp  pakety pomocí aplikace Sense Free
-print("zacatek")
+# udp  pakety pomocí aplikace Sense Free
+
+# TODO keyboard interrupt works when there is no timeout. The problem is in socket blocking mode. Fix this.
+
 try:
     # from paraview.simple import *
     import paraview.simple as pasi
@@ -47,11 +51,18 @@ def get_rotation_vector(root):
 class StreamReader(threading.Thread):
     # class StreamReader():
 
-    def __init__(self, show_debug=False):
+    def __init__(self, show_debug=False, maximum_timeouts=10):
         threading.Thread.__init__(self)
         self.show_debug = show_debug
         host = ''
         port = 50000
+        port = 22
+        import socket
+
+        print((([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")] or [
+            [(s.connect(("8.8.8.8", 53)), s.getsockname()[0], s.close()) for s in
+             [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) + ["no IP found"])[0])
+        print("port ", port)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -60,6 +71,7 @@ class StreamReader(threading.Thread):
         s.bind((host, port))
         self.socket = s
         self.filename = op.expanduser("~/camerastream.npy")
+        self.maximum_timeouts = 10
 
 
 
@@ -82,37 +94,67 @@ class StreamReader(threading.Thread):
         Save to output file random values. Used for debugging.
         :return:
         """
-        np.save(self.filename, np.random.rand(3))
+        random_rotation = np.random.rand(3)
+        np.save(self.filename, random_rotation)
+        return random_rotation
 
     def run(self):
         self.iterations()
 
     def iterations(self):
+        print("iterations started")
         show = self.show_debug
         rotations = []
-        while 1:
-            # sleep(0.5)
-            # print("yaooo")
-            try:
-                rotation = self.iteration()
-                if show:
-                    rotations.append(rotation)
-            # print(messageString)
-            except KeyboardInterrupt:
-                print("interrupt")
-                break
-            except socket.timeout as e:
-                err = e.args[0]
-                # this next if/else is a bit redundant, but illustrates how the
-                # timeout exception is setup
-                if err == 'timed out':
-                    time.sleep(1)
-                    print('recv timed out, retry later')
-                    self.save_random()
-                    continue
-                else:
+        timeouts_number = 0
+        if True:
+            stay_in_loop = True
+            while stay_in_loop:
+                # sleep(0.5)
+                # print("yaooo")
+                try:
+                    rotation = self.iteration()
+                    if show:
+                        rotations.append(rotation)
+                # print(messageString)
+                except socket.timeout as e:
+                    err = e.args[0]
+                    # this next if/else is a bit redundant, but illustrates how the
+                    # timeout exception is setup
                     print(e)
+                    if err == 'timed out':
+                        # try:
+                        #     pass
+                        #     # time.sleep(1)
+                        # except KeyboardInterrupt as ke:
+                        #     print(ke)
+                        #     stay_in_loop = False
+                        random_rotation = self.save_random()
+                        print('recv timed out, retry later, generated random rotation: ', random_rotation)
 
+                        timeouts_number += 1
+                        if timeouts_number >= self.maximum_timeouts:
+                            break
+
+                        continue
+                    else:
+                        print(e)
+                except KeyboardInterrupt as ke:
+                    print("Stream reader interrupted by keyboard")
+                    self.socket.close()
+                    # stay_in_loop = False
+                    break
+                # except Exception as exc:
+                #     print(str(exc))
+                #     print('Server closing')
+                #     self.socket.close()
+                #     break
+
+        # except KeyboardInterrupt as ke:
+        #     print("Stream reader interrupted by keyboard")
+        #     self.socket.close()
+        #     # break
+        #     # stay_in_loop = False
+        #     # raise ke
                     # sys.exit(1)
         if show:
             print("show")
@@ -126,9 +168,6 @@ class StreamReader(threading.Thread):
             )
             plt.legend(["0","1","2"])
             plt.show()
-
-
-
 
 
     #used for debugging
