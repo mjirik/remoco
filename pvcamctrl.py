@@ -8,6 +8,7 @@ import time
 import numpy as np
 import os.path as op
 import threading
+import math
 
 # udp  pakety pomocí aplikace Sense Free
 
@@ -47,7 +48,6 @@ def get_rotation_vector(root):
     ]
 
 
-
 class StreamReader(threading.Thread):
     # class StreamReader():
 
@@ -71,7 +71,7 @@ class StreamReader(threading.Thread):
         s.bind((host, port))
         self.socket = s
         self.filename = op.expanduser("~/camerastream.npy")
-        self.maximum_timeouts = 10
+        self.maximum_timeouts = 10000
 
 
 
@@ -84,8 +84,10 @@ class StreamReader(threading.Thread):
         root = root_from_xmlstr(messageString)
         rotation = get_rotation_vector(root)
         rotation_str = ['{:.2f}'.format(i) for i in rotation]
-        print(rotation_str, "recived from " + str(address) )
-        np.asarray(rotation)
+        eangles = rvector_to_eangles(rotation)
+        eangles_str = ['{:.2f}'.format(i) for i in eangles]
+        print(rotation_str, eangles_str, "recived from " + str(address) )
+        # np.asarray(rotation)
         np.save(self.filename, rotation)
         return rotation
 
@@ -105,9 +107,10 @@ class StreamReader(threading.Thread):
         print("iterations started")
         show = self.show_debug
         rotations = []
+        # rotations_euler = []
         timeouts_number = 0
-        if True:
-            stay_in_loop = True
+        stay_in_loop = True
+        try:
             while stay_in_loop:
                 # sleep(0.5)
                 # print("yaooo")
@@ -115,6 +118,7 @@ class StreamReader(threading.Thread):
                     rotation = self.iteration()
                     if show:
                         rotations.append(rotation)
+                        # rotations_euler.append(rvector_to_eangles(rotations))
                 # print(messageString)
                 except socket.timeout as e:
                     err = e.args[0]
@@ -122,6 +126,7 @@ class StreamReader(threading.Thread):
                     # timeout exception is setup
                     print(e)
                     if err == 'timed out':
+                        time.sleep(1)
                         # try:
                         #     pass
                         #     # time.sleep(1)
@@ -143,18 +148,25 @@ class StreamReader(threading.Thread):
                     self.socket.close()
                     # stay_in_loop = False
                     break
+
+                except ValueError as ve:
+
+                    print(ve)
+                    traceback.print_exc()
+                    print("Numeric error in angles conversion. It is not a real problem.")
+
                 # except Exception as exc:
                 #     print(str(exc))
                 #     print('Server closing')
                 #     self.socket.close()
                 #     break
 
-        # except KeyboardInterrupt as ke:
-        #     print("Stream reader interrupted by keyboard")
-        #     self.socket.close()
-        #     # break
-        #     # stay_in_loop = False
-        #     # raise ke
+        except KeyboardInterrupt as ke:
+            print("Stream reader interrupted by keyboard")
+            stay_in_loop = False
+            self.socket.close()
+            # break
+            # raise ke
                     # sys.exit(1)
         if show:
             print("show")
@@ -168,6 +180,15 @@ class StreamReader(threading.Thread):
             )
             plt.legend(["0","1","2"])
             plt.show()
+            # rotations_euler = np.asarray(rotations_euler)
+            # x = range(len(rotations))
+            # plt.plot(
+            #     x, rotations_euler[:, 0],
+            #     x, rotations_euler[:, 1],
+            #     x, rotations_euler[:, 2],
+            # )
+            # plt.legend(["0","1","2"])
+            # plt.show()
 
 
     #used for debugging
@@ -209,7 +230,9 @@ class CameraMover():
             self.load_state(state_fn)
         self.init_view()
 
-    def rvector_to_angle_deg(self, rotation):
+
+
+    def rvector_to_angle_deg0(self, rotation):
         # print(rotation)
         # this is experiment based compensation
         rt0 = rotation[2] * 180
@@ -223,6 +246,10 @@ class CameraMover():
             print("rotation ", rt0, angle_deg)
         return angle_deg
         # return rotation[2] * 180
+
+    def rvector_to_angle_deg(self, rotation):
+        eangles = rvector_to_eangles(rotation)
+        return eangles[2]
 
     def init_view(self):
         pasi.SetActiveView(pasi.GetRenderView())
@@ -250,6 +277,8 @@ class CameraMover():
             if paraview_loaded:
 
                 self.camera_rotate(self.rvector_to_angle_deg(rotation))
+                # self.camera_rotate(self.rvector_to_angle_deg0(rotation))
+
                 # self.camera_rotate(rotation[2] * 180)
                 # self.rvector_to_angle_deg(rotation=rotation)
         except Exception as e:
@@ -269,6 +298,57 @@ class CameraMover():
                 self.iteration()
                 time.sleep(self.timestep)
 
+def quaternionvec_from_rotationvec(rotation):
+    """
+    Calculate 4th part of normalized quaternion
+    :param rotation:
+    :return:
+    """
+    # Get full normalized quaternion
+    qx = float(rotation[0])
+    qy = float(rotation[1])
+    qz = float(rotation[2])
+    qw = (1 - qx**2 - qy**2 - qz**2)**0.5
+    return qw, qx, qy, qz
+
+def rvector_to_eangles(rotation):
+    # TODO finish
+
+
+    import math
+    # Get Euler angles ex, ey, ez
+    # ex = math.atan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx**2 + qy**2))
+
+    # ey = np.arcsin(2 * (qw * qy - qz * qx))
+    # ey = math.asin(2 * (qw * qy - qz * qx))
+    # ez = math.atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy ** 2 + qz**2))
+    # eangles1 = np.array([ex, ey, ez])
+
+    # from . import transformations
+    # import transformations
+    # eangles2 = transformations.euler_from_quaternion([qw, qx, qy, qz])
+    qw, qx, qy, qz = quaternionvec_from_rotationvec(rotation)
+    ex, ey, ez = quaternion_to_euler_angle(qw, qx, qy, qz)
+    eangles3 = np.array([ex, ey, ez])
+    return eangles3
+
+
+
+def quaternion_to_euler_angle(w, x, y, z):
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    X = math.degrees(math.atan2(t0, t1))
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    Y = math.degrees(math.asin(t2))
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    Z = math.degrees(math.atan2(t3, t4))
+
+    return X, Y, Z
 
 def main():
     import argparse
