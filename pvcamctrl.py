@@ -56,7 +56,7 @@ class StreamReader(threading.Thread):
         self.show_debug = show_debug
         host = ''
         port = 50000
-        port = 22
+        # port = 22
         import socket
 
         print((([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")] or [
@@ -71,7 +71,7 @@ class StreamReader(threading.Thread):
         s.bind((host, port))
         self.socket = s
         self.filename = op.expanduser("~/camerastream.npy")
-        self.maximum_timeouts = 10000
+        self.maximum_timeouts = maximum_timeouts
 
 
 
@@ -400,7 +400,7 @@ def main():
         args.stream_reader = True
 
     if args.stream_reader:
-        cm = StreamReader(show_debug=args.stream_reader_show)
+        cm = StreamReader(show_debug=args.stream_reader_show, maximum_timeouts=10)
         # cm.iterations() #  not start new thread
         cm.start() #  start new thread
 
