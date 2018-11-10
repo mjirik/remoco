@@ -51,7 +51,7 @@ def get_rotation_vector(root):
 class StreamReader(threading.Thread):
     # class StreamReader():
 
-    def __init__(self, show_debug=False, maximum_timeouts=10):
+    def __init__(self, show_debug=False, maximum_timeouts=None):
         threading.Thread.__init__(self)
         self.show_debug = show_debug
         host = ''
@@ -137,7 +137,8 @@ class StreamReader(threading.Thread):
                         print('recv timed out, retry later, generated random rotation: ', random_rotation)
 
                         timeouts_number += 1
-                        if timeouts_number >= self.maximum_timeouts:
+                        if self.maximum_timeouts is not None and timeouts_number >= self.maximum_timeouts:
+                            stay_in_loop = False
                             break
 
                         continue
@@ -385,6 +386,12 @@ def main():
         help='Size of the paraview visualization window'
     )
     parser.add_argument(
+        '-srto', '--streamreader-timeout',
+        default=None,
+        type=int,
+        help='Number of stream reader timeouts'
+    )
+    parser.add_argument(
         '-pvcf', '--paraview-compensation-factor',
         type=float,
         default=1.25,
@@ -426,5 +433,7 @@ def main():
 # <Accelerometer3>9.19400000331</Accelerometer3>
 # </Accelerometer>
 # <TimeStamp>1370354489083</TimeStamp>
+
+
 if __name__ == "__main__":
     main()
