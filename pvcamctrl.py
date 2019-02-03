@@ -24,10 +24,14 @@ except:
 
 # else:
 
+
 def root_from_xmlstr(xmlstr):
+    # print("=== xmlstr ===")
+    # print(xmlstr)
     fixed_xmlstr = fix_xml(xmlstr)
     root = etree.fromstring(fixed_xmlstr)
     return root
+
 
 def fix_xml(xmlstr):
     """
@@ -37,6 +41,7 @@ def fix_xml(xmlstr):
 
     i = xmlstr.find("?>")
     fixed_xmlstring = xmlstr[:i + 2] + "<root>" + xmlstr[i + 2:] + "</root>"
+    # print(fixed_xmlstring)
     return fixed_xmlstring
 
 def get_rotation_vector(root):
@@ -56,6 +61,7 @@ class StreamReader(threading.Thread):
         self.show_debug = show_debug
         host = ''
         port = 50000
+        port = 5555
         # port = 22
         import socket
 
@@ -78,6 +84,7 @@ class StreamReader(threading.Thread):
     def iteration(self):
         # message, address = s.recvfrom(8192)
         message, address = self.socket.recvfrom(1024)
+        # print(message)
         # print("recived from " + str(address))
         messageString = message.decode("utf-8")
         # print(messageString)
@@ -286,7 +293,7 @@ class CameraMover():
             print(e)
 
     def run(self):
-        self.iterations(n=10)
+        self.iterations(n=300)
 
     def iterations(self, n=10):
         if n is None:
