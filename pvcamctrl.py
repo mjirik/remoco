@@ -10,7 +10,8 @@ import os.path as op
 import threading
 import math
 
-# udp  pakety pomocí aplikace Sense Free
+# udp  pakety pomocí aplikace Sensor Node Free 
+# https://play.google.com/store/apps/details?id=com.mscino.sensornode
 
 # TODO keyboard interrupt works when there is no timeout. The problem is in socket blocking mode. Fix this.
 
